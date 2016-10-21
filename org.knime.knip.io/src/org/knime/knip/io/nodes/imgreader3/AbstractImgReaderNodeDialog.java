@@ -74,28 +74,24 @@ public abstract class AbstractImgReaderNodeDialog extends DefaultNodeSettingsPan
 
 	protected void buildRemainingGUI() {
 		createNewGroup("Output");
-		addDialogComponent(new DialogComponentStringSelection(AbstractImgReaderNodeModel.createMetaDataModeModel(),
+		addDialogComponent(new DialogComponentStringSelection(ImgReaderSettings.createMetaDataModeModel(),
 				"OME-XML-Metadata:", EnumUtils.getStringCollectionFromToString(MetadataMode.values())));
-		addDialogComponent(new DialogComponentBoolean(AbstractImgReaderNodeModel.createReadAllMetaDataModel(),
+		addDialogComponent(new DialogComponentBoolean(ImgReaderSettings.createReadAllMetaDataModel(),
 				"Read non OME-XML Metadata"));
 
-		addDialogComponent(new DialogComponentStringSelection(AbstractImgReaderNodeModel.createImgFactoryModel(),
-				"Image factory", AbstractImgReaderNodeModel.IMG_FACTORIES));
-
-		// FIXME Remove?
-		addDialogComponent(new DialogComponentStringSelection(AbstractImgReaderNodeModel.createPixelTypeModel(),
-				"Pixel type", AbstractImgReaderNodeModel.PIXEL_TYPES));
+		addDialogComponent(new DialogComponentStringSelection(ImgReaderSettings.createImgFactoryModel(),
+				"Image factory", ImgReaderSettings.IMG_FACTORIES));
 		closeCurrentGroup();
 
 		createNewGroup("File");
-		addDialogComponent(new DialogComponentBoolean(AbstractImgReaderNodeModel.createCheckFileFormatModel(),
+		addDialogComponent(new DialogComponentBoolean(ImgReaderSettings.createCheckFileFormatModel(),
 				"Check file format for each file (may be slower)"));
 		closeCurrentGroup();
 
 
 		createNewGroup("Series & Groups");
-		final SettingsModelBoolean smReadAll = AbstractImgReaderNodeModel.createReadAllSeriesModel();
-		final SettingsModelDoubleRange smSeriesIdx = AbstractImgReaderNodeModel.createSeriesSelectionRangeModel();
+		final SettingsModelBoolean smReadAll = ImgReaderSettings.createReadAllSeriesModel();
+		final SettingsModelDoubleRange smSeriesIdx = ImgReaderSettings.createSeriesSelectionRangeModel();
 		addDialogComponent(new DialogComponentBoolean(smReadAll, "Read all series"));
 		addDialogComponent(new DialogComponentDoubleRange(smSeriesIdx, 0, Short.MAX_VALUE, 1, "Series index"));
 
@@ -103,12 +99,12 @@ public abstract class AbstractImgReaderNodeDialog extends DefaultNodeSettingsPan
 		smSeriesIdx.setEnabled(!smReadAll.getBooleanValue());
 
 		addDialogComponent(
-				new DialogComponentBoolean(AbstractImgReaderNodeModel.createIsGroupFilesModel(), "Load group files?"));
+				new DialogComponentBoolean(ImgReaderSettings.createIsGroupFilesModel(), "Load group files?"));
 		closeCurrentGroup();
 
 		createNewTab("Subset Selection");
 		createNewGroup("Image Subset Selection");
-		addDialogComponent(new DialogComponentSubsetSelection2(AbstractImgReaderNodeModel.createPlaneSelectionModel(),
+		addDialogComponent(new DialogComponentSubsetSelection2(ImgReaderSettings.createPlaneSelectionModel(),
 				true, true, new int[] { 0, 1 }));
 		closeCurrentGroup();
 	}

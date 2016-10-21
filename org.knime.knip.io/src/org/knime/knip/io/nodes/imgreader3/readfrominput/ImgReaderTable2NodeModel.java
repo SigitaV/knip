@@ -51,6 +51,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.knime.base.filehandling.remote.connectioninformation.port.ConnectionInformationPortObject;
 import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataColumnSpecCreator;
 import org.knime.core.data.DataRow;
@@ -63,7 +64,9 @@ import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
+import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
+import org.knime.core.node.port.PortType;
 import org.knime.core.node.streamable.InputPortRole;
 import org.knime.core.node.streamable.OutputPortRole;
 import org.knime.core.node.streamable.PartitionInfo;
@@ -75,9 +78,10 @@ import org.knime.core.node.streamable.StreamableOperator;
 import org.knime.knip.base.data.img.ImgPlusCell;
 import org.knime.knip.base.node.NodeUtils;
 import org.knime.knip.core.util.EnumUtils;
-import org.knime.knip.io.nodes.imgreader2.AbstractImgReaderNodeModel;
-import org.knime.knip.io.nodes.imgreader2.ColumnCreationMode;
-import org.knime.knip.io.nodes.imgreader2.MetadataMode;
+import org.knime.knip.io.nodes.imgreader3.AbstractImgReaderNodeModel;
+import org.knime.knip.io.nodes.imgreader3.ColumnCreationMode;
+import org.knime.knip.io.nodes.imgreader3.ImgReaderSettings;
+import org.knime.knip.io.nodes.imgreader3.MetadataMode;
 
 import net.imglib2.img.ImgFactory;
 import net.imglib2.img.array.ArrayImgFactory;
@@ -100,6 +104,8 @@ import net.imglib2.type.numeric.RealType;
 public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> extends AbstractImgReaderNodeModel<T> {
 
 	private static final NodeLogger LOGGER = NodeLogger.getLogger(ImgReaderTable2NodeModel.class);
+	private static final int DATAPORT = 1;
+	private static final int CONNECTIONPORT = 0;
 
 	/**
 	 * @return Model to store the selected column in the optional input table
@@ -121,7 +127,8 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 	private final SettingsModelString m_colSuffix = createColSuffixNodeModel();
 
 	public ImgReaderTable2NodeModel() {
-		super(1, 1);
+		super(new PortType[] { ConnectionInformationPortObject.TYPE_OPTIONAL, BufferedDataTable.TYPE },
+				new PortType[] { BufferedDataTable.TYPE });
 
 		addSettingsModels(m_filenameColumn, m_colCreationMode, m_colSuffix);
 	}
@@ -129,27 +136,29 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 	@Override
 	protected DataTableSpec[] configure(DataTableSpec[] inSpecs) throws InvalidSettingsException {
 
-		int imgIdx = getPathColIdx(inSpecs[0]);
+		int imgIdx = getPathColIdx(inSpecs[DATAPORT]);
 		if (-1 == imgIdx) {
 			throw new InvalidSettingsException("A string column must be selected!");
 		}
 
-		return new DataTableSpec[] { getOutspec(inSpecs[0], imgIdx) };
+		return new DataTableSpec[] { getOutspec(inSpecs[DATAPORT], imgIdx) };
 	}
 
 	@Override
-	protected BufferedDataTable[] execute(BufferedDataTable[] inData, ExecutionContext exec) throws Exception {
+	protected BufferedDataTable[] execute(PortObject[] inData, ExecutionContext exec) throws Exception {
 
 		// boolean for exceptions and file format
 		final AtomicBoolean encounteredExceptions = new AtomicBoolean(false);
 
-		int imgIdx = getPathColIdx(inData[0].getDataTableSpec());
-		ReadImgTableFunction2<T> rifp = createImgTableFunction(exec, inData[0].getDataTableSpec(),
-				Long.valueOf(inData[0].size()).intValue());
+		BufferedDataTable inTable = (BufferedDataTable) inData[DATAPORT];
 
-		BufferedDataContainer bdc = exec.createDataContainer(getOutspec(inData[0].getDataTableSpec(), imgIdx));
+		int imgIdx = getPathColIdx(inTable.getDataTableSpec());
+		ReadImgTableFunction2<T> rifp = createImgTableFunction(exec, inTable.getDataTableSpec(),
+				Long.valueOf(inTable.size()).intValue());
 
-		Iterator<DataRow> iterator = inData[0].iterator();
+		BufferedDataContainer bdc = exec.createDataContainer(getOutspec(inTable.getDataTableSpec(), imgIdx));
+
+		Iterator<DataRow> iterator = inTable.iterator();
 		while (iterator.hasNext()) {
 			rifp.apply(iterator.next()).forEachOrdered(dataRow -> {
 
@@ -187,7 +196,7 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 		return new StreamableOperator() {
 			@Override
 			public void runFinal(PortInput[] inputs, PortOutput[] outputs, ExecutionContext exec) throws Exception {
-				RowInput in = (RowInput) inputs[0];
+				RowInput in = (RowInput) inputs[DATAPORT];
 				RowOutput out = (RowOutput) outputs[0];
 
 				// boolean for exceptions and file format
@@ -248,11 +257,10 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 		DataTableSpec outSpec;
 		// new table
 		ColumnCreationMode columnCreationMode = ColumnCreationMode.fromString(m_colCreationMode.getStringValue());
-		if (columnCreationMode == ColumnCreationMode.NEW_TABLE) {
-
+		switch (columnCreationMode) {
+		case NEW_TABLE: {
 			DataColumnSpec imgSpec = new DataColumnSpecCreator("Image", ImgPlusCell.TYPE).createSpec();
 			DataColumnSpec omeSpec = new DataColumnSpecCreator("OME-XML Metadata", XMLCell.TYPE).createSpec();
-
 			if (readImage && readMetadata) {
 				outSpec = new DataTableSpec(imgSpec, omeSpec);
 			} else if (readImage) {
@@ -260,23 +268,19 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 			} else {
 				outSpec = new DataTableSpec(omeSpec);
 			}
-
+			break;
 		}
-		// append
-		else if (columnCreationMode == ColumnCreationMode.APPEND) {
-
+		case APPEND: {
 			DataColumnSpec imgSpec = new DataColumnSpecCreator(
 					DataTableSpec.getUniqueColumnName(spec, "Image" + m_colSuffix.getStringValue()), ImgPlusCell.TYPE)
 							.createSpec();
 			DataColumnSpec omeSpec = new DataColumnSpecCreator(
 					DataTableSpec.getUniqueColumnName(spec, "OME-XML Metadata" + m_colSuffix.getStringValue()),
 					XMLCell.TYPE).createSpec();
-
 			List<DataColumnSpec> list = new ArrayList<>();
 			for (int i = 0; i < spec.getNumColumns(); i++) {
 				list.add(spec.getColumnSpec(i));
 			}
-
 			if (readImage && readMetadata) {
 				list.add(imgSpec);
 				list.add(omeSpec);
@@ -285,23 +289,21 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 			} else {
 				list.add(omeSpec);
 			}
-
 			outSpec = new DataTableSpec(list.toArray(new DataColumnSpec[list.size()]));
+			break;
 		}
-		// replace
-		else if (columnCreationMode == ColumnCreationMode.REPLACE) {
+		case REPLACE: {
+
 			DataColumnSpec imgSpec = new DataColumnSpecCreator(
 					DataTableSpec.getUniqueColumnName(spec, "Image" + m_colSuffix.getStringValue()), ImgPlusCell.TYPE)
 							.createSpec();
 			DataColumnSpec omeSpec = new DataColumnSpecCreator(
 					DataTableSpec.getUniqueColumnName(spec, "OME-XML Metadata" + m_colSuffix.getStringValue()),
 					XMLCell.TYPE).createSpec();
-
 			List<DataColumnSpec> list = new ArrayList<>();
 			for (int i = 0; i < spec.getNumColumns(); i++) {
 				list.add(spec.getColumnSpec(i));
 			}
-
 			if (readImage && readMetadata) {
 				list.set(imgIdx, imgSpec);
 				list.add(imgIdx + 1, omeSpec);
@@ -310,9 +312,10 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 			} else {
 				list.set(imgIdx, omeSpec);
 			}
-
 			outSpec = new DataTableSpec(list.toArray(new DataColumnSpec[list.size()]));
-		} else {
+			break;
+		}
+		default:
 			throw new IllegalStateException("Support for the columncreation mode" + m_colCreationMode.getStringValue()
 					+ " is not implemented!");
 		}
@@ -350,10 +353,10 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 				|| metadataMode == MetadataMode.METADATA_ONLY) ? true : false;
 
 		// create ImgFactory
-		ImgFactory<T> imgFac;
-		if (m_imgFactory.getStringValue().equals(IMG_FACTORIES[1])) {
+		ImgFactory<T> imgFac;// TODO Improve comments
+		if (m_imgFactory.getStringValue().equals(ImgReaderSettings.IMG_FACTORIES[1])) {
 			imgFac = new PlanarImgFactory<>();
-		} else if (m_imgFactory.getStringValue().equals(IMG_FACTORIES[2])) {
+		} else if (m_imgFactory.getStringValue().equals(ImgReaderSettings.IMG_FACTORIES[2])) {
 			imgFac = new CellImgFactory<>();
 		} else {
 			imgFac = new ArrayImgFactory<>();
@@ -372,11 +375,10 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 		}
 
 		// create image function
-		ReadImgTableFunction2<T> rifp = new ReadImgTableFunction2<>(exec, rowCount, m_planeSelect, readImage,
+		ReadImgTableFunction2<T> rifp = new ReadImgTableFunction2<T>(exec, rowCount, m_planeSelect, readImage,
 				readMetadata, m_readAllMetaDataModel.getBooleanValue(), m_checkFileFormat.getBooleanValue(),
 				m_isGroupFiles.getBooleanValue(), seriesSelectionFrom, seriesSelectionTo, imgFac,
-				ColumnCreationMode.fromString(m_colCreationMode.getStringValue()), imgIdx,
-				m_pixelType.getStringValue());
+				ColumnCreationMode.fromString(m_colCreationMode.getStringValue()), imgIdx);
 
 		return rifp;
 	}

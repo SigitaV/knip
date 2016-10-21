@@ -140,32 +140,25 @@ public class ImgWriter2NodeDialog extends DefaultNodeSettingsPane {
         addDialogComponent(new DialogComponentBoolean(absolutePathsModel,
                 "Absolute paths in the filename column"));
 
-        useCustomFileNameModel.addChangeListener(new ChangeListener() {
-            @Override
-            public void stateChanged(final ChangeEvent e) {
+        useCustomFileNameModel.addChangeListener(e -> {
 
-                // abort if change originated from absolute path model
-                if (absolutePathsModel.getBooleanValue()) {
-                    return;
-                }
+		    // abort if change originated from absolute path model
+		    if (absolutePathsModel.getBooleanValue()) {
+		        return;
+		    }
 
-                customFileNameModel
-                        .setEnabled(useCustomFileNameModel.getBooleanValue());
-                fileCol.setEnabled(!useCustomFileNameModel.getBooleanValue());
-            }
-        });
+		    customFileNameModel
+		            .setEnabled(useCustomFileNameModel.getBooleanValue());
+		    fileCol.setEnabled(!useCustomFileNameModel.getBooleanValue());
+		});
 
-        absolutePathsModel.addChangeListener(new ChangeListener() {
-            @Override
-            // activate or deactivate models of mutually exclusive models
-            public void stateChanged(final ChangeEvent e) {
-                boolean enabeled = absolutePathsModel.getBooleanValue();
-                dirChooserModel.setEnabled(!enabeled);
-                fileCol.setEnabled(enabeled);
-                useCustomFileNameModel.setEnabled(!enabeled);
-                customFileNameModel.setEnabled(!enabeled);
-            }
-        });
+        absolutePathsModel.addChangeListener(e -> {
+		    boolean enabeled = absolutePathsModel.getBooleanValue();
+		    dirChooserModel.setEnabled(!enabeled);
+		    fileCol.setEnabled(enabeled);
+		    useCustomFileNameModel.setEnabled(!enabeled);
+		    customFileNameModel.setEnabled(!enabeled);
+		});
 
         closeCurrentGroup();
     }

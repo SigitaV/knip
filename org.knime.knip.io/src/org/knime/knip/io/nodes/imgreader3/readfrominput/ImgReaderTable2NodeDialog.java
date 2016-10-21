@@ -78,13 +78,16 @@ public class ImgReaderTable2NodeDialog extends AbstractImgReaderNodeDialog {
 				"File name column in input table", 0, true, false, StringValue.class));
 		closeCurrentGroup();
 
-		super.buildRemainingGUI();
-
-		createNewTab("Column Settings");
+		createNewGroup("Column Settings");
+		setHorizontalPlacement(true);
 		addDialogComponent(new DialogComponentStringSelection(ImgReaderTable2NodeModel.createColCreationModeModel(),
 				"Column Creation Mode", ColumnCreationMode.getModes()));
-
 		addDialogComponent(
 				new DialogComponentString(ImgReaderTable2NodeModel.createColSuffixNodeModel(), "Column Suffix"));
+		setHorizontalPlacement(false);
+		closeCurrentGroup();
+
+		super.buildRemainingGUI();
+
 	}
 }

@@ -63,6 +63,7 @@ import org.knime.core.node.defaultnodesettings.SettingsModel;
 import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelDoubleRange;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
+import org.knime.core.node.port.PortType;
 import org.knime.knip.base.node.nodesettings.SettingsModelSubsetSelection2;
 import org.knime.knip.core.types.NativeTypes;
 
@@ -83,118 +84,23 @@ import net.imglib2.type.numeric.RealType;
 public abstract class AbstractImgReaderNodeModel<T extends RealType<T> & NativeType<T>> extends NodeModel
 		implements BufferedDataTableHolder {
 
-	/**
-	 * The available factory types available for selection.
-	 */
-	public static final String[] IMG_FACTORIES = new String[] { "Array Image Factory", "Planar Image Factory",
-			"Cell Image Factory" };
-
-	public static final String[] PIXEL_TYPES = { NativeTypes.BITTYPE.toString(), NativeTypes.BYTETYPE.toString(),
-			NativeTypes.DOUBLETYPE.toString(), NativeTypes.FLOATTYPE.toString(), NativeTypes.INTTYPE.toString(),
-			NativeTypes.LONGTYPE.toString(), NativeTypes.SHORTTYPE.toString(), NativeTypes.UNSIGNEDSHORTTYPE.toString(),
-			NativeTypes.UNSIGNED12BITTYPE.toString(), NativeTypes.UNSIGNEDINTTYPE.toString(),
-			NativeTypes.UNSIGNEDBYTETYPE.toString(), "< Automatic >" };
-
 	/* data table for the table cell viewer */
 	protected BufferedDataTable m_data;
 
 	/*
 	 * **********************************************************************
-	 * ************** SETTINGS MODELS CREATOR
-	 **********************************************************************/
-	/**
-	 * @return Model to store the check file format option.
-	 */
-	public static final SettingsModelBoolean createCheckFileFormatModel() {
-		return new SettingsModelBoolean("check_file_format", true);
-	}
-
-	// New in 1.0.2
-	public static final SettingsModelBoolean createIsGroupFilesModel() {
-		return new SettingsModelBoolean("group_files", true);
-	}
-
-	/**
-	 * @return Model to store the OME_XML-metadata column option.
-	 */
-	public static final SettingsModelBoolean createAppendOmexmlColModel() {
-		return new SettingsModelBoolean("xmlcolumns", false);
-	}
-
-	/**
-	 * @return Model for the settings holding selected image planes.
-	 */
-	public static final SettingsModelSubsetSelection2 createPlaneSelectionModel() {
-		return new SettingsModelSubsetSelection2("plane_selection");
-	}
-
-	/**
-	 * @return Model to store whether all series should be read
-	 */
-	public static final SettingsModelBoolean createReadAllSeriesModel() {
-		return new SettingsModelBoolean("read_all_series", true);
-	}
-
-	// /**
-	// * @return Key to store the selected series
-	// */
-	// public static final SettingsModelIntegerBounded
-	// createSeriesSelectionModel() {
-	// return new SettingsModelIntegerBounded("series_selection", 0, 0, 1000);
-	// }
-
-	public static SettingsModelDoubleRange createSeriesSelectionRangeModel() {
-		return new SettingsModelDoubleRange("series_range_selection", 0, Short.MAX_VALUE);
-	}
-
-	/**
-	 * @return Model to store the factory used to create the images
-	 */
-	public static SettingsModelString createImgFactoryModel() {
-		return new SettingsModelString("img_factory", IMG_FACTORIES[0]);
-	}
-
-	/**
-	 * @return Model to store the metadata mode.
-	 */
-	public static SettingsModelString createMetaDataModeModel() {
-		return new SettingsModelString("metadata_mode", MetadataMode.NO_METADATA.toString());
-	}
-
-	/**
-	 * @return Model to store whether to read all meta data or not.
-	 */
-	public static SettingsModelBoolean createReadAllMetaDataModel() {
-		return new SettingsModelBoolean("read_all_metadata", false);
-	}
-
-	public static SettingsModelString createPixelTypeModel() {
-		return new SettingsModelString("m_pixeltype", "< Automatic >");
-	}
-
-	/*
-	 * **********************************************************************
 	 * ************** SETTINGS MODELS
 	 **********************************************************************/
-	protected final SettingsModelBoolean m_checkFileFormat = createCheckFileFormatModel();
-
-	// New in 1.0.2
-	protected final SettingsModelBoolean m_isGroupFiles = createIsGroupFilesModel();
-	protected final SettingsModelSubsetSelection2 m_planeSelect = createPlaneSelectionModel();
-
-	// new in 1.1
-	protected final SettingsModelString m_imgFactory = createImgFactoryModel();
-	protected final SettingsModelBoolean m_readAllSeries = createReadAllSeriesModel();
-	// protected final SettingsModelIntegerBounded m_seriesSelection =
-	// createSeriesSelectionModel();
-	protected final SettingsModelDoubleRange m_seriesRangeSelection = createSeriesSelectionRangeModel();
-
-	// new in 1.3
-	protected final SettingsModelString m_metadataModeModel = createMetaDataModeModel();
-	protected final SettingsModelBoolean m_readAllMetaDataModel = createReadAllMetaDataModel();
-
-	protected final SettingsModelString m_pixelType = createPixelTypeModel();
-
+	protected final SettingsModelBoolean m_checkFileFormat = ImgReaderSettings.createCheckFileFormatModel();
+	protected final SettingsModelBoolean m_isGroupFiles = ImgReaderSettings.createIsGroupFilesModel();
+	protected final SettingsModelSubsetSelection2 m_planeSelect = ImgReaderSettings.createPlaneSelectionModel();
+	protected final SettingsModelString m_imgFactory = ImgReaderSettings.createImgFactoryModel();
+	protected final SettingsModelBoolean m_readAllSeries = ImgReaderSettings.createReadAllSeriesModel();
+	protected final SettingsModelDoubleRange m_seriesRangeSelection = ImgReaderSettings
+			.createSeriesSelectionRangeModel();
+	protected final SettingsModelString m_metadataModeModel = ImgReaderSettings.createMetaDataModeModel();
+	protected final SettingsModelBoolean m_readAllMetaDataModel = ImgReaderSettings.createReadAllMetaDataModel();
+	protected final SettingsModelString m_pixelType = ImgReaderSettings.createPixelTypeModel();
 	protected final List<SettingsModel> m_settingsCollection = new ArrayList<>();
 
 	/**
@@ -202,13 +108,23 @@ public abstract class AbstractImgReaderNodeModel<T extends RealType<T> & NativeT
 	 */
 	public AbstractImgReaderNodeModel(int numInPorts, int numOutPorts) {
 		super(numInPorts, numOutPorts);
+		initSettingsModels();
+	}
 
+	/**
+	 * Initializes the ImageReader
+	 */
+	public AbstractImgReaderNodeModel(PortType[] inputs, PortType[] outputs) {
+		super(inputs, outputs);
+		initSettingsModels();
+	}
+
+	private void initSettingsModels() {
 		m_settingsCollection.add(m_checkFileFormat);
 		m_settingsCollection.add(m_isGroupFiles);
 		m_settingsCollection.add(m_planeSelect);
 		m_settingsCollection.add(m_imgFactory);
 		m_settingsCollection.add(m_readAllSeries);
-		// m_settingsCollection.add(m_seriesSelection);
 		m_settingsCollection.add(m_seriesRangeSelection);
 		m_settingsCollection.add(m_metadataModeModel);
 		m_settingsCollection.add(m_readAllMetaDataModel);
@@ -218,6 +134,12 @@ public abstract class AbstractImgReaderNodeModel<T extends RealType<T> & NativeT
 		m_seriesRangeSelection.setEnabled(false);
 	}
 
+	/**
+	 * Add settingsmodels to the node, to profit from loading and saving etc.
+	 * Used by subclasses.
+	 * 
+	 * @param additionalSettingModels
+	 */
 	protected void addSettingsModels(SettingsModel... additionalSettingModels) {
 		for (SettingsModel sm : additionalSettingModels) {
 			m_settingsCollection.add(sm);
@@ -238,7 +160,7 @@ public abstract class AbstractImgReaderNodeModel<T extends RealType<T> & NativeT
 	@Override
 	protected void loadInternals(final File nodeInternDir, final ExecutionMonitor exec)
 			throws IOException, CanceledExecutionException {
-		//
+		// Not required
 	}
 
 	/**
@@ -255,7 +177,7 @@ public abstract class AbstractImgReaderNodeModel<T extends RealType<T> & NativeT
 	@Override
 	protected void saveInternals(final File nodeInternDir, final ExecutionMonitor exec)
 			throws IOException, CanceledExecutionException {
-		//
+		// Not required
 	}
 
 	/**
@@ -287,8 +209,6 @@ public abstract class AbstractImgReaderNodeModel<T extends RealType<T> & NativeT
 			sm.validateSettings(settings);
 		}
 	}
-
-	// // Methods for the table cell view ////
 
 	/**
 	 * {@inheritDoc}

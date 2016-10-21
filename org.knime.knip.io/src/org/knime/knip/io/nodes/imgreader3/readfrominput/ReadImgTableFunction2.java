@@ -22,9 +22,9 @@ import org.knime.core.node.ExecutionContext;
 import org.knime.core.util.FileUtil;
 import org.knime.core.util.Pair;
 import org.knime.knip.base.node.nodesettings.SettingsModelSubsetSelection2;
-import org.knime.knip.io.nodes.imgreader2.AbstractReadImgFunction;
-import org.knime.knip.io.nodes.imgreader2.ColumnCreationMode;
-import org.knime.knip.io.nodes.imgreader2.URLUtil;
+import org.knime.knip.io.nodes.imgreader3.AbstractReadImgFunction;
+import org.knime.knip.io.nodes.imgreader3.ColumnCreationMode;
+import org.knime.knip.io.nodes.imgreader3.URLUtil;
 
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
@@ -37,6 +37,7 @@ import net.imglib2.type.numeric.RealType;
  * 
  * @author <a href="mailto:danielseebacher@t-online.de">Daniel Seebacher,
  *         University of Konstanz.</a>
+ * @author Gabriel Einsdorf
  */
 class ReadImgTableFunction2<T extends RealType<T> & NativeType<T>> extends AbstractReadImgFunction<T, DataRow> {
 
@@ -46,9 +47,9 @@ class ReadImgTableFunction2<T extends RealType<T> & NativeType<T>> extends Abstr
 	public ReadImgTableFunction2(ExecutionContext exec, int numberOfFiles, SettingsModelSubsetSelection2 sel,
 			boolean readImage, boolean readMetadata, boolean readAllMetaData, boolean checkFileFormat,
 			boolean isGroupFiles, int seriesSelectionFrom, int seriesSelectionTo, ImgFactory<T> imgFactory,
-			ColumnCreationMode columnCreationMode, int stringIndex, final String pixelType) {
+			ColumnCreationMode columnCreationMode, int stringIndex) {
 		super(exec, numberOfFiles, sel, readImage, readMetadata, readAllMetaData, checkFileFormat, false, isGroupFiles,
-				seriesSelectionFrom, seriesSelectionTo, imgFactory, pixelType);
+				seriesSelectionFrom, seriesSelectionTo, imgFactory);
 
 		m_columnCreationMode = columnCreationMode;
 		m_stringIndex = stringIndex;

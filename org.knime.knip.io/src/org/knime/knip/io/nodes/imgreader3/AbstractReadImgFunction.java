@@ -16,7 +16,6 @@ import org.knime.core.node.ExecutionContext;
 import org.knime.core.util.Pair;
 import org.knime.knip.base.data.img.ImgPlusCellFactory;
 import org.knime.knip.base.node.nodesettings.SettingsModelSubsetSelection2;
-import org.knime.knip.core.types.NativeTypes;
 import org.knime.knip.io.ScifioImgSource;
 
 import io.scif.config.SCIFIOConfig;
@@ -34,6 +33,7 @@ import net.imglib2.type.numeric.RealType;
  * 
  * @author <a href="mailto:danielseebacher@t-online.de">Daniel Seebacher,
  *         University of Konstanz.</a>
+ * @author Gabriel Einsdorf
  * 
  * @param <T>
  *            They Type of the Image
@@ -58,13 +58,12 @@ public abstract class AbstractReadImgFunction<T extends RealType<T> & NativeType
 	protected final boolean m_readImage;
 	protected final boolean m_readMetadata;
 	protected final ImgPlusCellFactory m_cellFactory;
-	private String m_pixelType;
 
 	public AbstractReadImgFunction(final ExecutionContext exec, final int numberOfFiles,
 			final SettingsModelSubsetSelection2 sel, final boolean readImage, final boolean readMetadata,
 			final boolean readAllMetaData, final boolean checkFileFormat, final boolean completePathRowKey,
 			final boolean isGroupFiles, final int seriesSelectionFrom, int seriesSelectionTo,
-			final ImgFactory<T> imgFactory, final String pixelType) {
+			final ImgFactory<T> imgFactory) {
 
 		m_currentFile = new AtomicInteger();
 		m_numberOfFiles = numberOfFiles;
@@ -88,7 +87,6 @@ public abstract class AbstractReadImgFunction<T extends RealType<T> & NativeType
 				.parserSetSaveOriginalMetadata(m_readAllMetadata);
 		m_imgSource = new ScifioImgSource(imgFactory, checkFileFormat, m_scifioConfig);
 
-		m_pixelType = pixelType;
 	}
 
 	protected Pair<DataRow, Optional<Throwable>> createResultFromException(String path, String rowKey, Exception exc) {
@@ -96,15 +94,15 @@ public abstract class AbstractReadImgFunction<T extends RealType<T> & NativeType
 		DataCell[] cells = new DataCell[((m_readImage) ? 1 : 0) + ((m_readMetadata) ? 1 : 0)];
 
 		if (m_readImage) {
-			cells[0] = new MissingCell("Exception while processing  " + path + "!\nCaught Exception" + exc.getMessage()
-					+ "\n" + exc.getStackTrace());
+			cells[0] = new MissingCell("Exception while processing row: " + rowKey + " \nFailed to read from: " + path
+					+ "!\nCaught Exception" + exc.getMessage() + "\n" + exc.getStackTrace());
 		}
 
 		if (m_readMetadata) {
 			cells[cells.length - 1] = new MissingCell("Exception while processing  " + path + "!\nCaught Exception"
 					+ exc.getMessage() + "\n" + exc.getStackTrace());
 		}
-		return new Pair<DataRow, Optional<Throwable>>(new DefaultRow(path, cells), Optional.of(exc));
+		return new Pair<>(new DefaultRow(path, cells), Optional.of(exc));
 
 	}
 
@@ -133,18 +131,9 @@ public abstract class AbstractReadImgFunction<T extends RealType<T> & NativeType
 						m_imgSource.getDimensions(pathToImage, currentSeries),
 						calibAxes.toArray(new CalibratedAxis[calibAxes.size()]));
 
-				if (m_pixelType.equalsIgnoreCase(
-						AbstractImgReaderNodeModel.PIXEL_TYPES[AbstractImgReaderNodeModel.PIXEL_TYPES.length - 1])) {
-					ImgPlus<T> resImgPlus = (ImgPlus<T>) m_imgSource.getImg(pathToImage, currentSeries,
-							axisSelectionConstraints);
-					cells[0] = m_cellFactory.createCell(resImgPlus);
-				} else {
-					ImgPlus<T> resImgPlus = (ImgPlus<T>) m_imgSource.getTypedImg(pathToImage, currentSeries,
-							axisSelectionConstraints,
-							(T) NativeTypes.valueOf(m_pixelType.toUpperCase()).getTypeInstance());
-					cells[0] = m_cellFactory.createCell(resImgPlus);
-				}
-
+				ImgPlus<T> resImgPlus = (ImgPlus<T>) m_imgSource.getImg(pathToImage, currentSeries,
+						axisSelectionConstraints);
+				cells[0] = m_cellFactory.createCell(resImgPlus);
 			}
 
 			if (m_readMetadata) {
@@ -154,7 +143,7 @@ public abstract class AbstractReadImgFunction<T extends RealType<T> & NativeType
 			return createResultFromException(pathToImage, rowKey.getString(), exc);
 		}
 
-		return new Pair<DataRow, Optional<Throwable>>(new DefaultRow(rowKey, cells), Optional.empty());
+		return new Pair<>(new DefaultRow(rowKey, cells), Optional.empty());
 	}
 
 	/**
