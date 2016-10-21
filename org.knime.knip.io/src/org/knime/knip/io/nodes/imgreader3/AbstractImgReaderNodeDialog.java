@@ -48,17 +48,12 @@
  */
 package org.knime.knip.io.nodes.imgreader3;
 
-import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
-import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.defaultnodesettings.DefaultNodeSettingsPane;
 import org.knime.core.node.defaultnodesettings.DialogComponentBoolean;
 import org.knime.core.node.defaultnodesettings.DialogComponentDoubleRange;
 import org.knime.core.node.defaultnodesettings.DialogComponentStringSelection;
 import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelDoubleRange;
-import org.knime.core.node.port.PortObjectSpec;
 import org.knime.knip.base.node.dialog.DialogComponentSubsetSelection2;
 import org.knime.knip.core.util.EnumUtils;
 
@@ -76,16 +71,6 @@ import org.knime.knip.core.util.EnumUtils;
  */
 public abstract class AbstractImgReaderNodeDialog extends DefaultNodeSettingsPane {
 
-	@Override
-	public void loadAdditionalSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
-			throws NotConfigurableException {
-		super.loadAdditionalSettingsFrom(settings, specs);
-	}
-
-	@Override
-	public void saveAdditionalSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
-		super.saveAdditionalSettingsTo(settings);
-	}
 
 	protected void buildRemainingGUI() {
 		createNewGroup("Output");
@@ -97,6 +82,7 @@ public abstract class AbstractImgReaderNodeDialog extends DefaultNodeSettingsPan
 		addDialogComponent(new DialogComponentStringSelection(AbstractImgReaderNodeModel.createImgFactoryModel(),
 				"Image factory", AbstractImgReaderNodeModel.IMG_FACTORIES));
 
+		// FIXME Remove?
 		addDialogComponent(new DialogComponentStringSelection(AbstractImgReaderNodeModel.createPixelTypeModel(),
 				"Pixel type", AbstractImgReaderNodeModel.PIXEL_TYPES));
 		closeCurrentGroup();

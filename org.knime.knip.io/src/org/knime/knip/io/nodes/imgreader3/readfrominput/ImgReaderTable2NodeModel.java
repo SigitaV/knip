@@ -97,9 +97,9 @@ import net.imglib2.type.numeric.RealType;
  * @author <a href="mailto:danielseebacher@t-online.de">Daniel Seebacher,
  *         University of Konstanz.</a>
  */
-public class ImgReaderTableNodeModel<T extends RealType<T> & NativeType<T>> extends AbstractImgReaderNodeModel<T> {
+public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> extends AbstractImgReaderNodeModel<T> {
 
-	private static final NodeLogger LOGGER = NodeLogger.getLogger(ImgReaderTableNodeModel.class);
+	private static final NodeLogger LOGGER = NodeLogger.getLogger(ImgReaderTable2NodeModel.class);
 
 	/**
 	 * @return Model to store the selected column in the optional input table
@@ -120,7 +120,7 @@ public class ImgReaderTableNodeModel<T extends RealType<T> & NativeType<T>> exte
 	private final SettingsModelString m_colCreationMode = createColCreationModeModel();
 	private final SettingsModelString m_colSuffix = createColSuffixNodeModel();
 
-	public ImgReaderTableNodeModel() {
+	public ImgReaderTable2NodeModel() {
 		super(1, 1);
 
 		addSettingsModels(m_filenameColumn, m_colCreationMode, m_colSuffix);
@@ -144,7 +144,7 @@ public class ImgReaderTableNodeModel<T extends RealType<T> & NativeType<T>> exte
 		final AtomicBoolean encounteredExceptions = new AtomicBoolean(false);
 
 		int imgIdx = getPathColIdx(inData[0].getDataTableSpec());
-		ReadImgTableFunction<T> rifp = createImgTableFunction(exec, inData[0].getDataTableSpec(),
+		ReadImgTableFunction2<T> rifp = createImgTableFunction(exec, inData[0].getDataTableSpec(),
 				Long.valueOf(inData[0].size()).intValue());
 
 		BufferedDataContainer bdc = exec.createDataContainer(getOutspec(inData[0].getDataTableSpec(), imgIdx));
@@ -193,7 +193,7 @@ public class ImgReaderTableNodeModel<T extends RealType<T> & NativeType<T>> exte
 				// boolean for exceptions and file format
 				final AtomicBoolean encounteredExceptions = new AtomicBoolean(false);
 
-				ReadImgTableFunction<T> readImgFunction = createImgTableFunction(exec, in.getDataTableSpec(), 1);
+				ReadImgTableFunction2<T> readImgFunction = createImgTableFunction(exec, in.getDataTableSpec(), 1);
 
 				DataRow row;
 				while ((row = in.poll()) != null) {
@@ -338,7 +338,7 @@ public class ImgReaderTableNodeModel<T extends RealType<T> & NativeType<T>> exte
 		return imgColIndex;
 	}
 
-	private ReadImgTableFunction<T> createImgTableFunction(ExecutionContext exec, DataTableSpec inSpec, int rowCount)
+	private ReadImgTableFunction2<T> createImgTableFunction(ExecutionContext exec, DataTableSpec inSpec, int rowCount)
 			throws InvalidSettingsException {
 
 		int imgIdx = getPathColIdx(inSpec);
@@ -372,7 +372,7 @@ public class ImgReaderTableNodeModel<T extends RealType<T> & NativeType<T>> exte
 		}
 
 		// create image function
-		ReadImgTableFunction<T> rifp = new ReadImgTableFunction<>(exec, rowCount, m_planeSelect, readImage,
+		ReadImgTableFunction2<T> rifp = new ReadImgTableFunction2<>(exec, rowCount, m_planeSelect, readImage,
 				readMetadata, m_readAllMetaDataModel.getBooleanValue(), m_checkFileFormat.getBooleanValue(),
 				m_isGroupFiles.getBooleanValue(), seriesSelectionFrom, seriesSelectionTo, imgFac,
 				ColumnCreationMode.fromString(m_colCreationMode.getStringValue()), imgIdx,

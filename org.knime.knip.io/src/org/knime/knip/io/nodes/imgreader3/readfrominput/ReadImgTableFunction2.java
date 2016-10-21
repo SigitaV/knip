@@ -38,12 +38,12 @@ import net.imglib2.type.numeric.RealType;
  * @author <a href="mailto:danielseebacher@t-online.de">Daniel Seebacher,
  *         University of Konstanz.</a>
  */
-class ReadImgTableFunction<T extends RealType<T> & NativeType<T>> extends AbstractReadImgFunction<T, DataRow> {
+class ReadImgTableFunction2<T extends RealType<T> & NativeType<T>> extends AbstractReadImgFunction<T, DataRow> {
 
 	private ColumnCreationMode m_columnCreationMode;
 	private int m_stringIndex;
 
-	public ReadImgTableFunction(ExecutionContext exec, int numberOfFiles, SettingsModelSubsetSelection2 sel,
+	public ReadImgTableFunction2(ExecutionContext exec, int numberOfFiles, SettingsModelSubsetSelection2 sel,
 			boolean readImage, boolean readMetadata, boolean readAllMetaData, boolean checkFileFormat,
 			boolean isGroupFiles, int seriesSelectionFrom, int seriesSelectionTo, ImgFactory<T> imgFactory,
 			ColumnCreationMode columnCreationMode, int stringIndex, final String pixelType) {
@@ -117,7 +117,7 @@ class ReadImgTableFunction<T extends RealType<T> & NativeType<T>> extends Abstra
 	 *            {@link Exception}s.
 	 * @param columnSelectionMode
 	 *            the column selection mode see
-	 *            {@link ImgReaderTableNodeModel#COL_CREATION_MODES}
+	 *            {@link ImgReaderTable2NodeModel#COL_CREATION_MODES}
 	 * @param inputColumnIndex
 	 *            the column index of the path.
 	 * @return a {@link Stream} with the output {@link DataRow}s.

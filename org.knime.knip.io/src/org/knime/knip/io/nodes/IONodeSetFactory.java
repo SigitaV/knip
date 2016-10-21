@@ -62,6 +62,7 @@ import org.knime.knip.io.nodes.fileref.ImageFileRefNodeFactory;
 import org.knime.knip.io.nodes.imgimporter.ImgImporterNodeFactory;
 import org.knime.knip.io.nodes.imgreader2.readfromdialog.ImgReader2NodeFactory;
 import org.knime.knip.io.nodes.imgreader2.readfrominput.ImgReaderTableNodeFactory;
+import org.knime.knip.io.nodes.imgreader3.readfrominput.ImgReaderTable2NodeFactory;
 import org.knime.knip.io.nodes.imgwriter2.ImgWriter2NodeFactory;
 
 /**
@@ -128,6 +129,7 @@ public class IONodeSetFactory implements NodeSetFactory {
 		m_nodeFactories.put(ImgReader2NodeFactory.class.getCanonicalName(), "/community/knip/io");
 		m_nodeFactories.put(ImgReaderTableNodeFactory.class.getCanonicalName(), "/community/knip/io");
 		m_nodeFactories.put(LabelingEditorNodeFactory.class.getCanonicalName(), "/community/knip/labeling");
+		m_nodeFactories.put(ImgReaderTable2NodeFactory.class.getCanonicalName(), "/community/knip/io");
 		return m_nodeFactories.keySet();
 	}
 

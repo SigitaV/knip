@@ -48,66 +48,43 @@
  */
 package org.knime.knip.io.nodes.imgreader3.readfrominput;
 
-import org.knime.core.node.NodeDialogPane;
-import org.knime.core.node.NodeFactory;
-import org.knime.core.node.NodeView;
-import org.knime.knip.cellviewer.CellNodeView;
-
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
+import org.knime.core.data.StringValue;
+import org.knime.core.node.defaultnodesettings.DialogComponentColumnNameSelection;
+import org.knime.core.node.defaultnodesettings.DialogComponentString;
+import org.knime.core.node.defaultnodesettings.DialogComponentStringSelection;
+import org.knime.knip.io.nodes.imgreader3.AbstractImgReaderNodeDialog;
+import org.knime.knip.io.nodes.imgreader3.ColumnCreationMode;
 
 /**
- * The Factory class for the Image Reader.
+ * Dialog for the ImageReader to select the files and choose some additional
+ * options.
  *
  * @author <a href="mailto:dietzc85@googlemail.com">Christian Dietz</a>
  * @author <a href="mailto:horn_martin@gmx.de">Martin Horn</a>
  * @author <a href="mailto:michael.zinsmaier@googlemail.com">Michael
  *         Zinsmaier</a>
+ * @author <a href="mailto:gabriel.einsdorf@uni.kn"> Gabriel Einsdorf</a>
  * @author <a href="mailto:danielseebacher@t-online.de">Daniel Seebacher,
  *         University of Konstanz.</a>
  */
-public class ImgReaderTableNodeFactory<T extends NativeType<T> & RealType<T>>
-		extends NodeFactory<ImgReaderTableNodeModel<T>> {
+public class ImgReaderTable2NodeDialog extends AbstractImgReaderNodeDialog {
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public NodeDialogPane createNodeDialogPane() {
-		return new ImgReaderTableNodeDialog();
+	@SuppressWarnings("unchecked")
+	public ImgReaderTable2NodeDialog() {
+		super();
+
+		createNewGroup("File Input Column");
+		addDialogComponent(new DialogComponentColumnNameSelection(ImgReaderTable2NodeModel.createFilenameColumnModel(),
+				"File name column in input table", 0, true, false, StringValue.class));
+		closeCurrentGroup();
+
+		super.buildRemainingGUI();
+
+		createNewTab("Column Settings");
+		addDialogComponent(new DialogComponentStringSelection(ImgReaderTable2NodeModel.createColCreationModeModel(),
+				"Column Creation Mode", ColumnCreationMode.getModes()));
+
+		addDialogComponent(
+				new DialogComponentString(ImgReaderTable2NodeModel.createColSuffixNodeModel(), "Column Suffix"));
 	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public ImgReaderTableNodeModel<T> createNodeModel() {
-		return new ImgReaderTableNodeModel<>();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public NodeView<ImgReaderTableNodeModel<T>> createNodeView(final int i,
-			final ImgReaderTableNodeModel<T> nodeModel) {
-		return new CellNodeView<>(nodeModel);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public int getNrNodeViews() {
-		return 1;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public boolean hasDialog() {
-		return true;
-	}
-
 }
