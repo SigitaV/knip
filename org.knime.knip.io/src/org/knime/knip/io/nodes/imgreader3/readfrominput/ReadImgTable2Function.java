@@ -5,6 +5,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.InvalidPathException;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -13,6 +14,11 @@ import java.util.function.Function;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import org.knime.base.filehandling.remote.connectioninformation.port.ConnectionInformation;
+import org.knime.base.filehandling.remote.files.Connection;
+import org.knime.base.filehandling.remote.files.ConnectionMonitor;
+import org.knime.base.filehandling.remote.files.RemoteFile;
+import org.knime.base.filehandling.remote.files.RemoteFileFactory;
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.RowKey;
@@ -39,56 +45,71 @@ import net.imglib2.type.numeric.RealType;
  *         University of Konstanz.</a>
  * @author Gabriel Einsdorf
  */
-class ReadImgTableFunction2<T extends RealType<T> & NativeType<T>> extends AbstractReadImgFunction<T, DataRow> {
+class ReadImgTable2Function<T extends RealType<T> & NativeType<T>> extends AbstractReadImgFunction<T, DataRow> {
 
-	private ColumnCreationMode m_columnCreationMode;
-	private int m_stringIndex;
+	private final ColumnCreationMode columnCreationMode;
+	private final int stringIndex;
+	private final ConnectionMonitor<? extends Connection> monitor;
+	private final ConnectionInformation connectionInfo;
 
-	public ReadImgTableFunction2(ExecutionContext exec, int numberOfFiles, SettingsModelSubsetSelection2 sel,
+	public ReadImgTable2Function(ExecutionContext exec, int numberOfFiles, SettingsModelSubsetSelection2 sel,
 			boolean readImage, boolean readMetadata, boolean readAllMetaData, boolean checkFileFormat,
 			boolean isGroupFiles, int seriesSelectionFrom, int seriesSelectionTo, ImgFactory<T> imgFactory,
-			ColumnCreationMode columnCreationMode, int stringIndex) {
+			ColumnCreationMode columnCreationMode, int stringIndex, ConnectionInformation connectionInfo) {
 		super(exec, numberOfFiles, sel, readImage, readMetadata, readAllMetaData, checkFileFormat, false, isGroupFiles,
 				seriesSelectionFrom, seriesSelectionTo, imgFactory);
 
-		m_columnCreationMode = columnCreationMode;
-		m_stringIndex = stringIndex;
+		this.columnCreationMode = columnCreationMode;
+		this.stringIndex = stringIndex;
+		this.connectionInfo = connectionInfo;
+
+		monitor = new ConnectionMonitor<>();
 	}
 
 	@Override
 	public Stream<Pair<DataRow, Optional<Throwable>>> apply(DataRow input) {
 		List<Pair<DataRow, Optional<Throwable>>> tempResults = new ArrayList<>();
 
-		if (input.getCell(m_stringIndex).isMissing()) {
+		if (input.getCell(stringIndex).isMissing()) {
 			m_exec.setProgress(Double.valueOf(m_currentFile.incrementAndGet()) / m_numberOfFiles);
 			return Arrays.asList(createResultFromException("no path specified", input.getKey().getString(),
 					new IllegalArgumentException("Input was missing"))).stream();
 		}
 
-		String t = ((StringValue) input.getCell(m_stringIndex)).getStringValue();
-		String path;
+		final String t = ((StringValue) input.getCell(stringIndex)).getStringValue();
+		URI uri = null;
+		try {
+			uri = URLUtil.encode(t);
+		} catch (RuntimeException e) { // TODO Fix exception Type thrown by
+										// URLUtil
+			handlExceptionDuringExecute(input, t, e);
+		}
+
+		final String path;
 		int numSeries;
 		try {
-			URI uri = URLUtil.encode(t);
 			URL url = uri.toURL();
+			// check if its an Internet address;
 
-			// check if its an internet address;
-			if (url.getProtocol().equalsIgnoreCase("HTTP") || url.getProtocol().equalsIgnoreCase("FTP")
-					|| url.getProtocol().equalsIgnoreCase("HTTPS")) {
-				path = url.toURI().toString();
-			} else {
+			if (url.getProtocol().equalsIgnoreCase("FILE")) {
 				path = FileUtil.resolveToPath(url).toString();
+			} else if (connectionInfo != null) {
+				path = createRemoteFileURI(uri, connectionInfo);
+			} else {
+				if (url.getProtocol().equalsIgnoreCase("HTTP") || url.getProtocol().equalsIgnoreCase("FTP")
+						|| url.getProtocol().equalsIgnoreCase("HTTPS")) {
+					path = url.toURI().toString();
+				} else {
+					path = ""; // FIXME
+				}
 			}
 
 			numSeries = m_imgSource.getSeriesCount(path);
 		} catch (InvalidPathException | IOException | URISyntaxException exc) {
-			m_exec.setProgress(Double.valueOf(m_currentFile.incrementAndGet()) / m_numberOfFiles);
-			return Arrays.asList(createResultFromException(t, input.getKey().getString(), exc)).stream();
+			return handlExceptionDuringExecute(input, t, exc);
 		} catch (Exception exc) {
-			m_exec.setProgress(Double.valueOf(m_currentFile.incrementAndGet()) / m_numberOfFiles);
-			return Arrays.asList(createResultFromException(t, input.getKey().getString(), exc)).stream();
+			return handlExceptionDuringExecute(input, t, exc);
 		}
-
 		int seriesStart = m_selectedSeriesFrom == -1 ? 0 : m_selectedSeriesFrom;
 		int seriesEnd = m_selectedSeriesTo == -1 ? numSeries : Math.min(m_selectedSeriesTo + 1, numSeries);
 
@@ -104,7 +125,38 @@ class ReadImgTableFunction2<T extends RealType<T> & NativeType<T>> extends Abstr
 
 		m_exec.setProgress(Double.valueOf(m_currentFile.incrementAndGet()) / m_numberOfFiles);
 
-		return createOutput(input, tempResults, m_columnCreationMode, m_stringIndex);
+		return createOutput(input, tempResults, columnCreationMode, stringIndex);
+	}
+
+	private String createRemoteFileURI(URI uri, ConnectionInformation info) {
+
+		String path = uri.getPath();
+		String scheme = uri.getScheme();
+		try {
+			final RemoteFile<? extends Connection> file = RemoteFileFactory.createRemoteFile(uri, connectionInfo,
+					monitor);
+
+			String query = MessageFormat.format("omero:name={0}&server={1}&port={2}&user={3}&password={4}", file.getName(),
+					info.getHost(), info.getPort(), info.getUser(), info.getPassword());
+
+			if (info.getProtocol().equals("ome")) { // TODO make smart
+				query += "&imageId=" + path.substring(path.lastIndexOf("/"));
+			}
+
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return null;
+		// TODO Auto-generated method stub
+
+	}
+
+	private Stream<Pair<DataRow, Optional<Throwable>>> handlExceptionDuringExecute(DataRow input, String t,
+			Exception exc) {
+		m_exec.setProgress(Double.valueOf(m_currentFile.incrementAndGet()) / m_numberOfFiles);
+		return Arrays.asList(createResultFromException(t, input.getKey().getString(), exc)).stream();
 	}
 
 	/**
@@ -154,9 +206,9 @@ class ReadImgTableFunction2<T extends RealType<T> & NativeType<T>> extends Abstr
 					cells.add(inputRow.getCell(i));
 				}
 
-				cells.set(m_stringIndex, result.getFirst().getCell(0));
+				cells.set(stringIndex, result.getFirst().getCell(0));
 				if (result.getFirst().getNumCells() > 1) {
-					cells.add(m_stringIndex + 1, result.getFirst().getCell(1));
+					cells.add(stringIndex + 1, result.getFirst().getCell(1));
 				}
 
 				outputResults.add(new Pair<>(

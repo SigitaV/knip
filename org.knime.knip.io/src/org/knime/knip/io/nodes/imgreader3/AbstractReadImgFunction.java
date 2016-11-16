@@ -122,7 +122,7 @@ public abstract class AbstractReadImgFunction<T extends RealType<T> & NativeType
 	protected Pair<DataRow, Optional<Throwable>> readImageAndMetadata(String pathToImage, RowKey rowKey,
 			int currentSeries) {
 
-		DataCell[] cells = new DataCell[((m_readImage) ? 1 : 0) + ((m_readMetadata) ? 1 : 0)];
+		DataCell[] cells = new DataCell[(m_readImage ? 1 : 0) + (m_readMetadata ? 1 : 0)];
 
 		try {
 			if (m_readImage) {

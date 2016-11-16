@@ -51,6 +51,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.knime.base.filehandling.remote.connectioninformation.port.ConnectionInformation;
 import org.knime.base.filehandling.remote.connectioninformation.port.ConnectionInformationPortObject;
 import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataColumnSpecCreator;
@@ -125,6 +126,7 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 	private final SettingsModelString m_filenameColumn = createFilenameColumnModel();
 	private final SettingsModelString m_colCreationMode = createColCreationModeModel();
 	private final SettingsModelString m_colSuffix = createColSuffixNodeModel();
+	private ConnectionInformation connectionInfo;
 
 	public ImgReaderTable2NodeModel() {
 		super(new PortType[] { ConnectionInformationPortObject.TYPE_OPTIONAL, BufferedDataTable.TYPE },
@@ -153,10 +155,12 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 		BufferedDataTable inTable = (BufferedDataTable) inData[DATAPORT];
 
 		int imgIdx = getPathColIdx(inTable.getDataTableSpec());
-		ReadImgTableFunction2<T> rifp = createImgTableFunction(exec, inTable.getDataTableSpec(),
+		ReadImgTable2Function<T> rifp = createImgTableFunction(exec, inTable.getDataTableSpec(),
 				Long.valueOf(inTable.size()).intValue());
 
 		BufferedDataContainer bdc = exec.createDataContainer(getOutspec(inTable.getDataTableSpec(), imgIdx));
+
+		connectionInfo = ((ConnectionInformationPortObject) inData[CONNECTIONPORT]).getConnectionInformation();
 
 		Iterator<DataRow> iterator = inTable.iterator();
 		while (iterator.hasNext()) {
@@ -202,7 +206,7 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 				// boolean for exceptions and file format
 				final AtomicBoolean encounteredExceptions = new AtomicBoolean(false);
 
-				ReadImgTableFunction2<T> readImgFunction = createImgTableFunction(exec, in.getDataTableSpec(), 1);
+				ReadImgTable2Function<T> readImgFunction = createImgTableFunction(exec, in.getDataTableSpec(), 1);
 
 				DataRow row;
 				while ((row = in.poll()) != null) {
@@ -249,10 +253,9 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 	private DataTableSpec getOutspec(DataTableSpec spec, int imgIdx) {
 		MetadataMode metadataMode = EnumUtils.valueForName(m_metadataModeModel.getStringValue(), MetadataMode.values());
 
-		boolean readImage = (metadataMode == MetadataMode.NO_METADATA || metadataMode == MetadataMode.APPEND_METADATA)
-				? true : false;
-		boolean readMetadata = (metadataMode == MetadataMode.APPEND_METADATA
-				|| metadataMode == MetadataMode.METADATA_ONLY) ? true : false;
+		boolean readImage = metadataMode == MetadataMode.NO_METADATA || metadataMode == MetadataMode.APPEND_METADATA;
+		boolean readMetadata = metadataMode == MetadataMode.APPEND_METADATA
+				|| metadataMode == MetadataMode.METADATA_ONLY;
 
 		DataTableSpec outSpec;
 		// new table
@@ -293,7 +296,6 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 			break;
 		}
 		case REPLACE: {
-
 			DataColumnSpec imgSpec = new DataColumnSpecCreator(
 					DataTableSpec.getUniqueColumnName(spec, "Image" + m_colSuffix.getStringValue()), ImgPlusCell.TYPE)
 							.createSpec();
@@ -341,7 +343,7 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 		return imgColIndex;
 	}
 
-	private ReadImgTableFunction2<T> createImgTableFunction(ExecutionContext exec, DataTableSpec inSpec, int rowCount)
+	private ReadImgTable2Function<T> createImgTableFunction(ExecutionContext exec, DataTableSpec inSpec, int rowCount)
 			throws InvalidSettingsException {
 
 		int imgIdx = getPathColIdx(inSpec);
@@ -370,16 +372,14 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 			seriesSelectionFrom = -1;
 			seriesSelectionTo = -1;
 		} else {
-			seriesSelectionFrom = Double.valueOf(m_seriesRangeSelection.getMinRange()).intValue();
-			seriesSelectionTo = Double.valueOf(m_seriesRangeSelection.getMaxRange()).intValue();
+			seriesSelectionFrom = (int) m_seriesRangeSelection.getMinRange();
+			seriesSelectionTo = (int) m_seriesRangeSelection.getMaxRange();
 		}
 
 		// create image function
-		ReadImgTableFunction2<T> rifp = new ReadImgTableFunction2<T>(exec, rowCount, m_planeSelect, readImage,
-				readMetadata, m_readAllMetaDataModel.getBooleanValue(), m_checkFileFormat.getBooleanValue(),
+		return new ReadImgTable2Function<T>(exec, rowCount, m_planeSelect, readImage, readMetadata,
+				m_readAllMetaDataModel.getBooleanValue(), m_checkFileFormat.getBooleanValue(),
 				m_isGroupFiles.getBooleanValue(), seriesSelectionFrom, seriesSelectionTo, imgFac,
-				ColumnCreationMode.fromString(m_colCreationMode.getStringValue()), imgIdx);
-
-		return rifp;
+				ColumnCreationMode.fromString(m_colCreationMode.getStringValue()), imgIdx, connectionInfo);
 	}
 }

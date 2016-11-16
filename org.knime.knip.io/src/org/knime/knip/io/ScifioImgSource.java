@@ -56,6 +56,8 @@ import java.util.Set;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.knime.base.filehandling.remote.files.Connection;
+import org.knime.base.filehandling.remote.files.RemoteFile;
 import org.knime.core.node.NodeLogger;
 import org.knime.core.node.NodeLogger.LEVEL;
 import org.knime.knip.base.exceptions.KNIPRuntimeException;
@@ -201,6 +203,7 @@ public class ScifioImgSource implements ImgSource {
 			try {
 				m_reader.closeNow();
 			} catch (final IOException e) {
+				// Errors don't matter here
 			}
 		}
 	}
