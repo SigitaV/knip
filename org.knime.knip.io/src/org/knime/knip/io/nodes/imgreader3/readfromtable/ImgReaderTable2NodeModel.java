@@ -11,6 +11,7 @@ import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataColumnSpecCreator;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.RowKey;
 import org.knime.core.data.uri.URIDataValue;
 import org.knime.core.data.xml.XMLCell;
 import org.knime.core.node.BufferedDataContainer;
@@ -78,7 +79,7 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 	@Override
 	protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
 
-		final AtomicInteger encounteredExceptionsCount = new AtomicInteger(0);
+		final AtomicInteger errorCount = new AtomicInteger(0);
 
 		ScifioImgReader<T> reader;
 		if (useRemote) {
@@ -87,21 +88,19 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 			reader = createLocalScifioReader(exec);
 		}
 
-		BufferedDataTable in = (BufferedDataTable) inObjects[DATA_PORT];
-		BufferedDataContainer container = exec.createDataContainer(in.getDataTableSpec());
+		final BufferedDataTable in = (BufferedDataTable) inObjects[DATA_PORT];
+		final int uriColIdx = getUriColIdx(in.getDataTableSpec());
+		final BufferedDataContainer container = exec.createDataContainer(in.getDataTableSpec());
 
-		for (DataRow row : in) {
+		for (final DataRow row : in) {
 			exec.checkCanceled();
-			ScifioReadResult<T> res = reader.read(row);
 
+			final ScifioReadResult<T> res = reader.read(row, uriColIdx);
 			res.getRows().forEach(container::addRowToTable);
 
-			if (res.getErrors().isPresent()) {
-				encounteredExceptionsCount.incrementAndGet();
-
-				LOGGER.warn("Encountered exception while reading from source: " + row.getKey()
-						+ " ; view log for more info.");
-				LOGGER.debug(res.getErrors().get());
+			// errors during execution
+			if (!res.getErrors().isEmpty()) {
+				handleReadErrors(errorCount, row.getKey(), res.getErrors());
 			}
 		}
 
@@ -113,8 +112,7 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 	private PortObjectSpec[] createOutSpec(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
 
 		// ensure there is a valid column
-		final int pathColIdx = NodeUtils.autoColumnSelection((DataTableSpec) inSpecs[1], filenameColumnModel,
-				URIDataValue.class, ImgReaderTable2NodeModel.class);
+		final int uriColIdx = getUriColIdx(inSpecs[DATA_PORT]);
 
 		// initialze the settings
 		final MetadataMode metaDataMode = EnumUtils.valueForName(metadataModeModel.getStringValue(),
@@ -176,12 +174,12 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 
 				if (readImage && readMetadata) {
 					// only the read images replace the URI column
-					columnSpecs.set(pathColIdx, imgSpec);
-					columnSpecs.add(pathColIdx + 1, omeSpec);
+					columnSpecs.set(uriColIdx, imgSpec);
+					columnSpecs.add(uriColIdx + 1, omeSpec);
 				} else if (readImage) {
-					columnSpecs.set(pathColIdx, imgSpec);
+					columnSpecs.set(uriColIdx, imgSpec);
 				} else {
-					columnSpecs.set(pathColIdx, omeSpec);
+					columnSpecs.set(uriColIdx, omeSpec);
 				}
 
 				outSpec = new DataTableSpec(columnSpecs.toArray(new DataColumnSpec[columnSpecs.size()]));
@@ -194,22 +192,28 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 		return new PortObjectSpec[] { outSpec };
 	}
 
+	private int getUriColIdx(final PortObjectSpec inSpec) throws InvalidSettingsException {
+		return NodeUtils.autoColumnSelection((DataTableSpec) inSpec, filenameColumnModel, URIDataValue.class,
+				ImgReaderTable2NodeModel.class);
+	}
+
 	@Override
 	public StreamableOperator createStreamableOperator(final PartitionInfo partitionInfo,
 			final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
 
 		return new StreamableOperator() {
 			@Override
-			public void runFinal(PortInput[] inputs, PortOutput[] outputs, ExecutionContext exec) throws Exception {
+			public void runFinal(final PortInput[] inputs, final PortOutput[] outputs, final ExecutionContext exec)
+					throws Exception {
 
 				final RowInput in = (RowInput) inputs[DATA_PORT];
 				final RowOutput out = (RowOutput) outputs[0];
 
 				final AtomicInteger encounteredExceptionsCount = new AtomicInteger(0);
 
-				ScifioImgReader<T> reader;
+				final ScifioImgReader<T> reader;
 				if (useRemote) {
-					ConnectionInformationPortObject connection = (ConnectionInformationPortObject) ((PortObjectInput) inputs[CONNECTION_PORT])
+					final ConnectionInformationPortObject connection = (ConnectionInformationPortObject) ((PortObjectInput) inputs[CONNECTION_PORT])
 							.getPortObject();
 					reader = createRemoteScifioReader(exec, connection);
 				} else {
@@ -217,28 +221,19 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 				}
 
 				DataRow row;
+				final int uriColIdx = getUriColIdx(inSpecs[DATA_PORT]);
 
 				// get next row from input
 				while ((row = in.poll()) != null) {
-					ScifioReadResult<T> res = reader.read(row);
+					final ScifioReadResult<T> res = reader.read(row, uriColIdx);
 
-					res.getRows().forEach(resRow -> {
-						try {
-							out.push(resRow);
-						} catch (InterruptedException e) {
-							encounteredExceptionsCount.incrementAndGet();
-							LOGGER.warn("Could not push row: ");
-						}
-					});
+					for (final DataRow resRow : res.getRows()) {
+						out.push(resRow);
+					}
 
-					if (res.getErrors().isPresent()) {
-
-						// count number of errors
-						encounteredExceptionsCount.incrementAndGet();
-
-						LOGGER.warn("Encountered exception while reading from source: " + row.getKey()
-								+ " ; view log for more info.");
-						LOGGER.debug(res.getErrors().get());
+					// count number of errors
+					if (!res.getErrors().isEmpty()) {
+						handleReadErrors(encounteredExceptionsCount, row.getKey(), res.getErrors());
 					}
 				}
 
@@ -249,13 +244,13 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 		};
 	}
 
-	private ScifioImgReader<T> createLocalScifioReader(ExecutionContext exec) {
+	private ScifioImgReader<T> createLocalScifioReader(final ExecutionContext exec) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
-	private ScifioImgReader<T> createRemoteScifioReader(ExecutionContext exec,
-			ConnectionInformationPortObject connection) {
+	private ScifioImgReader<T> createRemoteScifioReader(final ExecutionContext exec,
+			final ConnectionInformationPortObject connection) {
 		// TODO Auto-generated method stub
 		return null;
 	}
@@ -273,6 +268,15 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 	@Override
 	public OutputPortRole[] getOutputPortRoles() {
 		return new OutputPortRole[] { OutputPortRole.DISTRIBUTED };
+	}
+
+	private void handleReadErrors(final AtomicInteger encounteredExceptionsCount, final RowKey rowKey,
+			final List<Exception> errors) {
+		encounteredExceptionsCount.incrementAndGet();
+
+		LOGGER.warn("Encountered exception while reading from source: " + rowKey + " ; view log for more info.");
+
+		errors.forEach(LOGGER::debug);
 	}
 
 }

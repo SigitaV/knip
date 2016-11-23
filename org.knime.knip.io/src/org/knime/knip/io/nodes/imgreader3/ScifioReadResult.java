@@ -10,19 +10,28 @@ import net.imglib2.type.numeric.RealType;
 
 public class ScifioReadResult<T extends RealType<T> & NativeType<T>> {
 
-	public Optional<Exception> getErrors() {
-		// TODO Auto-generated method stub
-		return null;
+	private List<DataRow> rows;
+	private List<Exception> errors;
+
+	public ScifioReadResult(List<DataRow> rows, List<Exception> errors) {
+		this.rows = rows;
+		this.errors = errors;
+
 	}
 
+	/**
+	 * @return all exceptions encountered
+	 */
+	public List<Exception> getErrors() {
+		return errors;
+	}
 
 	/**
-	 * @return
+	 * @return all succesfully read rows.
 	 */
 	public List<DataRow> getRows() {
-		// TODO Auto-generated method stub
-		return null;
-		
+		return rows;
+
 	}
 
 }
