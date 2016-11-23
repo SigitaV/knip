@@ -1,4 +1,4 @@
-package org.knime.knip.io.nodes.imgreader3.readfromdialog;
+package org.knime.knip.io.nodes.imgreader3.readfromtable;
 
 import org.knime.core.data.uri.URIDataValue;
 import org.knime.core.node.defaultnodesettings.DialogComponentColumnNameSelection;
@@ -24,16 +24,16 @@ public class ImgReaderTable2NodeDialog extends AbstractImgReaderNodeDialog {
 		addDialogComponent(new DialogComponentColumnNameSelection(fileURIColumnModel, "File URI column in input table",
 				1, true, false, URIDataValue.class));
 		closeCurrentGroup();
-		
+
 		// insert default gui
 		super.buildRemainingGUI();
 
 		createNewTab("Column Settings");
-		SettingsModelString colCreationModeModel = ImgReaderSettingsModels.createColumnCreationModeModel();
+		final SettingsModelString colCreationModeModel = ImgReaderSettingsModels.createColumnCreationModeModel();
 		addDialogComponent(new DialogComponentStringSelection(colCreationModeModel, "Column Creation Mode",
 				EnumUtils.getStringListFromToString(ColumnCreationMode.values())));
 
-		SettingsModelString columnSuffixModel = ImgReaderSettingsModels.createColumnSuffixNodeModel();
+		final SettingsModelString columnSuffixModel = ImgReaderSettingsModels.createColumnSuffixNodeModel();
 		addDialogComponent(new DialogComponentString(columnSuffixModel, "Column Suffix"));
 	}
 

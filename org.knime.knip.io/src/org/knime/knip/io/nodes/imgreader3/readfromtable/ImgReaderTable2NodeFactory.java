@@ -1,4 +1,4 @@
-package org.knime.knip.io.nodes.imgreader3.readfromdialog;
+package org.knime.knip.io.nodes.imgreader3.readfromtable;
 
 import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeFactory;
@@ -22,7 +22,8 @@ public class ImgReaderTable2NodeFactory<T extends NativeType<T> & RealType<T>>
 	}
 
 	@Override
-	public NodeView<ImgReaderTable2NodeModel<T>> createNodeView(int viewIndex, ImgReaderTable2NodeModel<T> nodeModel) {
+	public NodeView<ImgReaderTable2NodeModel<T>> createNodeView(final int viewIndex,
+			final ImgReaderTable2NodeModel<T> nodeModel) {
 		return new CellNodeView<>(nodeModel);
 	}
 
