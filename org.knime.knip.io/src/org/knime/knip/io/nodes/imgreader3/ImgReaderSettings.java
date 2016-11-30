@@ -6,24 +6,30 @@ import org.knime.core.node.defaultnodesettings.SettingsModelDoubleRange;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.knip.base.node.nodesettings.SettingsModelSubsetSelection2;
 
+import net.imglib2.img.ImgFactory;
+import net.imglib2.img.array.ArrayImgFactory;
+import net.imglib2.img.cell.CellImgFactory;
+import net.imglib2.img.planar.PlanarImgFactory;
+
 /**
  * Settings for the Image Reader nodes
  */
-public class ImgReaderSettingsModels {
+public class ImgReaderSettings {
 
 	/**
 	 * Enum that stores the supported image factories
 	 *
 	 */
-	public enum ImgFactories {
+	public enum ImgFactoryMode {
 
 		ARRAY_IMG("Array Image Factory"), PLANAR_IMG("Planar Image Factory"), CELL_IMG("Cell Image Factory");
 
 		private final String name;
 
-		private ImgFactories(String name) {
+		private ImgFactoryMode(String name) {
 			this.name = name;
 		}
+
 
 		@Override
 		public String toString() {
@@ -103,7 +109,7 @@ public class ImgReaderSettingsModels {
 	 * @return Model to store the factory used to create the images
 	 */
 	public static SettingsModelString createImgFactoryModel() {
-		return new SettingsModelString("Image Factory", ImgFactories.ARRAY_IMG.toString());
+		return new SettingsModelString("Image Factory", ImgFactoryMode.ARRAY_IMG.toString());
 	}
 
 	/**

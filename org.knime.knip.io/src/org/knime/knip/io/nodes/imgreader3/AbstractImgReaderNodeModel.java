@@ -18,7 +18,13 @@ import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelDoubleRange;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.port.PortType;
+import org.knime.knip.core.util.EnumUtils;
+import org.knime.knip.io.nodes.imgreader3.ImgReaderSettings.ImgFactoryMode;
 
+import net.imglib2.img.ImgFactory;
+import net.imglib2.img.array.ArrayImgFactory;
+import net.imglib2.img.cell.CellImgFactory;
+import net.imglib2.img.planar.PlanarImgFactory;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
@@ -27,17 +33,17 @@ public abstract class AbstractImgReaderNodeModel<T extends NativeType<T> & RealT
 
 	List<SettingsModel> settingsModels = new ArrayList<>();
 
-	protected final SettingsModelBoolean checkFileFormatModel = ImgReaderSettingsModels.createCheckFileFormatModel();
-	protected final SettingsModelBoolean isGroupFilesModel = ImgReaderSettingsModels.createIsGroupFilesModel();
-	protected final SettingsModelBoolean appendOmeXMLColModel = ImgReaderSettingsModels.createAppendOMEXMLColModel();
+	protected final SettingsModelBoolean checkFileFormatModel = ImgReaderSettings.createCheckFileFormatModel();
+	protected final SettingsModelBoolean isGroupFilesModel = ImgReaderSettings.createIsGroupFilesModel();
+	protected final SettingsModelBoolean appendOmeXMLColModel = ImgReaderSettings.createAppendOMEXMLColModel();
 
-	protected final SettingsModelString imgFactoryModel = ImgReaderSettingsModels.createImgFactoryModel();
-	protected final SettingsModelBoolean readAllSeriesModel = ImgReaderSettingsModels.createReadAllSeriesModel();
-	protected final SettingsModelDoubleRange seriesRangeSelectionModel = ImgReaderSettingsModels
+	protected final SettingsModelString imgFactoryModel = ImgReaderSettings.createImgFactoryModel();
+	protected final SettingsModelBoolean readAllSeriesModel = ImgReaderSettings.createReadAllSeriesModel();
+	protected final SettingsModelDoubleRange seriesRangeSelectionModel = ImgReaderSettings
 			.createSeriesSelectionRangeModel();
 
-	protected final SettingsModelString metadataModeModel = ImgReaderSettingsModels.createMetaDataModeModel();
-	protected final SettingsModelBoolean readAllMetaDataModel = ImgReaderSettingsModels.createReadAllMetaDataModel();
+	protected final SettingsModelString metadataModeModel = ImgReaderSettings.createMetaDataModeModel();
+	protected final SettingsModelBoolean readAllMetaDataModel = ImgReaderSettings.createReadAllMetaDataModel();
 
 	private BufferedDataTable dataTable;
 
@@ -114,6 +120,23 @@ public abstract class AbstractImgReaderNodeModel<T extends NativeType<T> & RealT
 	@Override
 	protected void reset() {
 		dataTable = null;
+	}
+
+	protected ImgFactory<T> createImgFactory() {
+		ImgFactoryMode factorySetting = EnumUtils.valueForName(imgFactoryModel.getStringValue(),
+				ImgFactoryMode.values());
+	
+		ImgFactory<T> factory;
+		if (factorySetting == ImgFactoryMode.PLANAR_IMG) {
+			factory = new PlanarImgFactory<>();
+		} else if (factorySetting == ImgFactoryMode.CELL_IMG) {
+			factory = new CellImgFactory<>();
+		} else if (factorySetting == ImgFactoryMode.ARRAY_IMG) {
+			factory = new ArrayImgFactory<>();
+		} else {
+			throw new IllegalStateException("Unknonw factory type " + factorySetting.toString());
+		}
+		return factory;
 	}
 
 }

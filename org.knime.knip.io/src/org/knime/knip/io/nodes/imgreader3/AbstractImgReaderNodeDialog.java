@@ -56,8 +56,8 @@ import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelDoubleRange;
 import org.knime.knip.base.node.dialog.DialogComponentSubsetSelection2;
 import org.knime.knip.core.util.EnumUtils;
-import org.knime.knip.io.nodes.imgreader3.ImgReaderSettingsModels.ImgFactories;
-import org.knime.knip.io.nodes.imgreader3.ImgReaderSettingsModels.MetadataMode;
+import org.knime.knip.io.nodes.imgreader3.ImgReaderSettings.ImgFactoryMode;
+import org.knime.knip.io.nodes.imgreader3.ImgReaderSettings.MetadataMode;
 
 /**
  * Abstract dialog for the ImageReader, specifies common settings. 
@@ -69,24 +69,24 @@ public abstract class AbstractImgReaderNodeDialog extends DefaultNodeSettingsPan
 
 	protected void buildRemainingGUI() {
 		createNewGroup("Output");
-		addDialogComponent(new DialogComponentStringSelection(ImgReaderSettingsModels.createMetaDataModeModel(),
+		addDialogComponent(new DialogComponentStringSelection(ImgReaderSettings.createMetaDataModeModel(),
 				"OME-XML-Metadata:", EnumUtils.getStringCollectionFromToString(MetadataMode.values())));
-		addDialogComponent(new DialogComponentBoolean(ImgReaderSettingsModels.createReadAllMetaDataModel(),
+		addDialogComponent(new DialogComponentBoolean(ImgReaderSettings.createReadAllMetaDataModel(),
 				"Read non OME-XML Metadata"));
 
-		addDialogComponent(new DialogComponentStringSelection(ImgReaderSettingsModels.createImgFactoryModel(),
-				"Image factory", EnumUtils.getStringCollectionFromToString(ImgFactories.values())));
+		addDialogComponent(new DialogComponentStringSelection(ImgReaderSettings.createImgFactoryModel(),
+				"Image factory", EnumUtils.getStringCollectionFromToString(ImgFactoryMode.values())));
 		closeCurrentGroup();
 
 		createNewGroup("File");
-		addDialogComponent(new DialogComponentBoolean(ImgReaderSettingsModels.createCheckFileFormatModel(),
+		addDialogComponent(new DialogComponentBoolean(ImgReaderSettings.createCheckFileFormatModel(),
 				"Check file format for each file (may be slower)"));
 		closeCurrentGroup();
 
 
 		createNewGroup("Series & Groups");
-		final SettingsModelBoolean readAllSeriesModel = ImgReaderSettingsModels.createReadAllSeriesModel();
-		final SettingsModelDoubleRange seriesSelectionRangeModel = ImgReaderSettingsModels.createSeriesSelectionRangeModel();
+		final SettingsModelBoolean readAllSeriesModel = ImgReaderSettings.createReadAllSeriesModel();
+		final SettingsModelDoubleRange seriesSelectionRangeModel = ImgReaderSettings.createSeriesSelectionRangeModel();
 		addDialogComponent(new DialogComponentBoolean(readAllSeriesModel, "Read all series"));
 		addDialogComponent(new DialogComponentDoubleRange(seriesSelectionRangeModel, 0, Short.MAX_VALUE, 1, "Series index"));
 
@@ -94,12 +94,12 @@ public abstract class AbstractImgReaderNodeDialog extends DefaultNodeSettingsPan
 		seriesSelectionRangeModel.setEnabled(!readAllSeriesModel.getBooleanValue());
 
 		addDialogComponent(
-				new DialogComponentBoolean(ImgReaderSettingsModels.createIsGroupFilesModel(), "Load group files?"));
+				new DialogComponentBoolean(ImgReaderSettings.createIsGroupFilesModel(), "Load group files?"));
 		closeCurrentGroup();
 
 		createNewTab("Subset Selection");
 		createNewGroup("Image Subset Selection");
-		addDialogComponent(new DialogComponentSubsetSelection2(ImgReaderSettingsModels.createPlaneSelectionModel(),
+		addDialogComponent(new DialogComponentSubsetSelection2(ImgReaderSettings.createPlaneSelectionModel(),
 				true, true, new int[] { 0, 1 }));
 		closeCurrentGroup();
 	}

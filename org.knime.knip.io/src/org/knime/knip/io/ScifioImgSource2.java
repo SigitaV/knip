@@ -169,13 +169,11 @@ public class ScifioImgSource2 implements ImgSource {
 	 * @param checkFileFormat
 	 *            if for each new file to be read a new reader should be created
 	 *            or the old one can be re-used
-	 * @param config
-	 *            additional scifio-specific settings
 	 * 
 	 * 
 	 */
 	public ScifioImgSource2(@SuppressWarnings("rawtypes") final ImgFactory imgFactory, final boolean checkFileFormat,
-			final SCIFIOConfig config) {
+			SCIFIOConfig config) {
 		this.scifioConfig = config;
 		this.checkFileFormat = checkFileFormat;
 		this.imgOpener = new ImgOpener(ScifioGateway.getSCIFIO().getContext());
@@ -356,8 +354,7 @@ public class ScifioImgSource2 implements ImgSource {
 			options.imgOpenerSetRegion(new ImageRegion(axes, ranges));
 		}
 
-		final ImgPlus<T> ret = MiscViews
-				.cleanImgPlus(imgOpener.openImg(getReader(imgRef), type, imgFactory, options));
+		final ImgPlus<T> ret = MiscViews.cleanImgPlus(imgOpener.openImg(getReader(imgRef), type, imgFactory, options));
 
 		org.apache.log4j.Logger.getLogger(KNIPLogService.class.getSimpleName()).setLevel(m_rootLvl);
 		return ret;
@@ -555,6 +552,11 @@ public class ScifioImgSource2 implements ImgSource {
 		// TODO Auto-generated method stub
 		return null;
 
+	}
+
+	public String getOMEXMLMetadata(URI uri) {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }

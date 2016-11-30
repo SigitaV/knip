@@ -8,22 +8,31 @@ import org.knime.core.data.DataRow;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
+/**
+ * Stores the result of a reading operation
+ *
+ * @param <T>
+ */
 public class ScifioReadResult<T extends RealType<T> & NativeType<T>> {
 
 	private List<DataRow> rows;
-	private List<Exception> errors;
+	private Optional<Throwable> error;
 
-	public ScifioReadResult(List<DataRow> rows, List<Exception> errors) {
+	/**
+	 * @param rows
+	 * @param error
+	 */
+	public ScifioReadResult(List<DataRow> rows, Optional<Throwable> error) {
 		this.rows = rows;
-		this.errors = errors;
+		this.error = error;
 
 	}
 
 	/**
 	 * @return all exceptions encountered
 	 */
-	public List<Exception> getErrors() {
-		return errors;
+	public Optional<Throwable> getError() {
+		return error;
 	}
 
 	/**

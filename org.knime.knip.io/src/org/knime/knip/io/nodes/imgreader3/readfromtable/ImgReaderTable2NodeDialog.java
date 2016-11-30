@@ -7,8 +7,8 @@ import org.knime.core.node.defaultnodesettings.DialogComponentStringSelection;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.knip.core.util.EnumUtils;
 import org.knime.knip.io.nodes.imgreader3.AbstractImgReaderNodeDialog;
-import org.knime.knip.io.nodes.imgreader3.ImgReaderSettingsModels;
-import org.knime.knip.io.nodes.imgreader3.ImgReaderSettingsModels.ColumnCreationMode;
+import org.knime.knip.io.nodes.imgreader3.ImgReaderSettings;
+import org.knime.knip.io.nodes.imgreader3.ImgReaderSettings.ColumnCreationMode;
 
 public class ImgReaderTable2NodeDialog extends AbstractImgReaderNodeDialog {
 
@@ -19,7 +19,7 @@ public class ImgReaderTable2NodeDialog extends AbstractImgReaderNodeDialog {
 		super();
 
 		createNewGroup("File Input Column");
-		fileURIColumnModel = ImgReaderSettingsModels.createFileURIColumnModel();
+		fileURIColumnModel = ImgReaderSettings.createFileURIColumnModel();
 
 		addDialogComponent(new DialogComponentColumnNameSelection(fileURIColumnModel, "File URI column in input table",
 				1, true, false, URIDataValue.class));
@@ -29,11 +29,11 @@ public class ImgReaderTable2NodeDialog extends AbstractImgReaderNodeDialog {
 		super.buildRemainingGUI();
 
 		createNewTab("Column Settings");
-		final SettingsModelString colCreationModeModel = ImgReaderSettingsModels.createColumnCreationModeModel();
+		final SettingsModelString colCreationModeModel = ImgReaderSettings.createColumnCreationModeModel();
 		addDialogComponent(new DialogComponentStringSelection(colCreationModeModel, "Column Creation Mode",
 				EnumUtils.getStringListFromToString(ColumnCreationMode.values())));
 
-		final SettingsModelString columnSuffixModel = ImgReaderSettingsModels.createColumnSuffixNodeModel();
+		final SettingsModelString columnSuffixModel = ImgReaderSettings.createColumnSuffixNodeModel();
 		addDialogComponent(new DialogComponentString(columnSuffixModel, "Column Suffix"));
 	}
 

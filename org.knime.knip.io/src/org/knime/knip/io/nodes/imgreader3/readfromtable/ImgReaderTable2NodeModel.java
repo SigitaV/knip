@@ -38,10 +38,11 @@ import org.knime.knip.base.data.img.ImgPlusCell;
 import org.knime.knip.base.node.NodeUtils;
 import org.knime.knip.core.util.EnumUtils;
 import org.knime.knip.io.nodes.imgreader3.AbstractImgReaderNodeModel;
-import org.knime.knip.io.nodes.imgreader3.ImgReaderSettingsModels;
-import org.knime.knip.io.nodes.imgreader3.ImgReaderSettingsModels.ColumnCreationMode;
-import org.knime.knip.io.nodes.imgreader3.ImgReaderSettingsModels.MetadataMode;
+import org.knime.knip.io.nodes.imgreader3.ImgReaderSettings;
+import org.knime.knip.io.nodes.imgreader3.ImgReaderSettings.ColumnCreationMode;
+import org.knime.knip.io.nodes.imgreader3.ImgReaderSettings.MetadataMode;
 import org.knime.knip.io.nodes.imgreader3.ScifioImgReader;
+import org.knime.knip.io.nodes.imgreader3.ScifioImgReader.ScifioReaderBuilder;
 import org.knime.knip.io.nodes.imgreader3.ScifioReadResult;
 
 import net.imglib2.type.NativeType;
@@ -54,9 +55,9 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 	protected static final NodeLogger LOGGER = NodeLogger.getLogger(ImgReaderTable2NodeModel.class);
 
 	/** Settings Models */
-	private final SettingsModelColumnName filenameColumnModel = ImgReaderSettingsModels.createFileURIColumnModel();
-	private final SettingsModelString columnCreationModeModel = ImgReaderSettingsModels.createColumnCreationModeModel();
-	private final SettingsModelString columnSuffixModel = ImgReaderSettingsModels.createColumnSuffixNodeModel();
+	private final SettingsModelColumnName filenameColumnModel = ImgReaderSettings.createFileURIColumnModel();
+	private final SettingsModelString columnCreationModeModel = ImgReaderSettings.createColumnCreationModeModel();
+	private final SettingsModelString columnSuffixModel = ImgReaderSettings.createColumnSuffixNodeModel();
 
 	private boolean useRemote;
 
@@ -81,26 +82,27 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 
 		final AtomicInteger errorCount = new AtomicInteger(0);
 
+		final BufferedDataTable in = (BufferedDataTable) inObjects[DATA_PORT];
+		final BufferedDataContainer container = exec.createDataContainer(in.getDataTableSpec());
+		final int uriColIdx = getUriColIdx(in.getDataTableSpec());
+
 		ScifioImgReader<T> reader;
 		if (useRemote) {
-			reader = createRemoteScifioReader(exec, (ConnectionInformationPortObject) inObjects[CONNECTION_PORT]);
+			reader = createRemoteScifioReader(exec, (ConnectionInformationPortObject) inObjects[CONNECTION_PORT],
+					uriColIdx);
 		} else {
 			reader = createLocalScifioReader(exec);
 		}
 
-		final BufferedDataTable in = (BufferedDataTable) inObjects[DATA_PORT];
-		final int uriColIdx = getUriColIdx(in.getDataTableSpec());
-		final BufferedDataContainer container = exec.createDataContainer(in.getDataTableSpec());
-
 		for (final DataRow row : in) {
 			exec.checkCanceled();
 
-			final ScifioReadResult<T> res = reader.read(row, uriColIdx);
+			final ScifioReadResult<T> res = reader.read(row);
 			res.getRows().forEach(container::addRowToTable);
 
 			// errors during execution
-			if (!res.getErrors().isEmpty()) {
-				handleReadErrors(errorCount, row.getKey(), res.getErrors());
+			if (!res.getError().isPresent()) {
+				handleReadErrors(errorCount, row.getKey(), res.getError().get());
 			}
 		}
 
@@ -212,28 +214,30 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 				final AtomicInteger encounteredExceptionsCount = new AtomicInteger(0);
 
 				final ScifioImgReader<T> reader;
+				DataRow row;
+				final int uriColIdx = getUriColIdx(inSpecs[DATA_PORT]);
 				if (useRemote) {
 					final ConnectionInformationPortObject connection = (ConnectionInformationPortObject) ((PortObjectInput) inputs[CONNECTION_PORT])
 							.getPortObject();
-					reader = createRemoteScifioReader(exec, connection);
+					reader = createRemoteScifioReader(exec, connection, uriColIdx);
 				} else {
 					reader = createLocalScifioReader(exec);
 				}
 
-				DataRow row;
-				final int uriColIdx = getUriColIdx(inSpecs[DATA_PORT]);
-
 				// get next row from input
 				while ((row = in.poll()) != null) {
-					final ScifioReadResult<T> res = reader.read(row, uriColIdx);
+					
+					// TODO Make less ugly?
+					final ScifioReadResult<T> res = reader
+							.read(((URIDataValue) row.getCell(uriColIdx)).getURIContent().getURI());
 
 					for (final DataRow resRow : res.getRows()) {
 						out.push(resRow);
 					}
 
 					// count number of errors
-					if (!res.getErrors().isEmpty()) {
-						handleReadErrors(encounteredExceptionsCount, row.getKey(), res.getErrors());
+					if (!res.getError().isPresent()) {
+						handleReadErrors(encounteredExceptionsCount, row.getKey(), res.getError().get());
 					}
 				}
 
@@ -250,9 +254,25 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 	}
 
 	private ScifioImgReader<T> createRemoteScifioReader(final ExecutionContext exec,
-			final ConnectionInformationPortObject connection) {
-		// TODO Auto-generated method stub
-		return null;
+			final ConnectionInformationPortObject connection, int uriColIdx) {
+
+		ScifioReaderBuilder<T> builder = new ScifioReaderBuilder<>();
+
+		// File settings
+		builder.checkFileFormat(checkFileFormatModel.getBooleanValue());
+		builder.metaDataMode(EnumUtils.valueForName(metadataModeModel.getStringValue(), MetadataMode.values()));
+		builder.imgFactory(createImgFactory());
+
+		// connection info
+		builder.connectionInfo(connection.getConnectionInformation());
+
+		// Table settings
+		builder.exec(exec);
+		builder.uriColumnIdx(uriColIdx);
+		builder.columnCreationMode(
+				EnumUtils.valueForName(columnCreationModeModel.getStringValue(), ColumnCreationMode.values()));
+
+		return builder.build();
 	}
 
 	@Override
@@ -271,12 +291,12 @@ public class ImgReaderTable2NodeModel<T extends RealType<T> & NativeType<T>> ext
 	}
 
 	private void handleReadErrors(final AtomicInteger encounteredExceptionsCount, final RowKey rowKey,
-			final List<Exception> errors) {
+			final Throwable throwable) {
 		encounteredExceptionsCount.incrementAndGet();
 
 		LOGGER.warn("Encountered exception while reading from source: " + rowKey + " ; view log for more info.");
 
-		errors.forEach(LOGGER::debug);
+		LOGGER.debug(throwable);
 	}
 
 }
